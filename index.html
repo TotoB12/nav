@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+  
+<body>
+    <div id="directionsPanel"></div>
+    <div id="map-wrapper">
+        <div id="map"></div>
+        <button id="recenter-button">
+            <img src="https://img.icons8.com/ios-glyphs/30/000000/compass.png"/>
+        </button>
+    </div>
+    <form id="address-form">
+        <input type="text" id="address-input" placeholder="Enter an address">
+        <button type="submit">
+            <img src="https://img.icons8.com/ios-glyphs/30/000000/map.png"/>
+        </button>
+    </form>
+    <!-- <script src="map-styles.js"></script> -->
+    <script src="script.js"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDOXyN5QuyRDuPhPGmAIWsFyTdBhTu0ufM&callback=initMap">
+</script>
+</body>
+</html>
