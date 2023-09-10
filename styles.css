@@ -3,10 +3,10 @@ html, body {
     margin: 0;
     padding: 0;
     overflow: hidden;
+    font-family: 'Montserrat', sans-serif;
 }
 
 body {
-    font-family: Arial, sans-serif;
     display: flex;
     flex-direction: column;
 }
@@ -90,5 +90,15 @@ button img {
     bottom: 10px;
     right: 10px;
     width: 50px;
+    z-index: 1;
+}
+
+#speedometer {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 10px;
+    background-color: white;
+    border-radius: 5px;
     z-index: 1;
 }
