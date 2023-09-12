@@ -4,11 +4,14 @@ let prevPos = null;
 let prevPrevPos = null;
 let lastUpdatedPos = null;
 let lastUserMoveTime = null;
+let nearestRoadLocation = { lat: 0, lng: 0 };
+let lastNearestRoadLocation = { lat: 0, lng: 0 };
 let watchId;
 let currentStep = 0;
 let route = null;
-let distanceToNextStep = 0;
-let placeId;
+let close = true;
+let etaIntervalId;
+let routeETA;
 
 function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
@@ -26,8 +29,6 @@ function initMap() {
         track = false;
         lastUserMoveTime = Date.now();
     });
-
-    // setInterval(function() {}, 1000);
 
     function recenter() {
         if (navigator.geolocation) {
@@ -59,6 +60,32 @@ function initMap() {
         }
     });
 
+    function calculateBearing(startLat, startLng, endLat, endLng){
+          startLat = toRadians(startLat);
+          startLng = toRadians(startLng);
+          endLat = toRadians(endLat);
+          endLng = toRadians(endLng);
+      
+          let dLng = endLng - startLng;
+      
+          let dPhi = Math.log(Math.tan(endLat/2.0+Math.PI/4.0)/Math.tan(startLat/2.0+Math.PI/4.0));
+      
+          if (Math.abs(dLng) > Math.PI){
+              if (dLng > 0.0) dLng = -(2.0 * Math.PI - dLng);
+              else dLng = (2.0 * Math.PI + dLng);
+          }
+      
+          return (toDegrees(Math.atan2(dLng, dPhi)) + 360.0) % 360.0;
+      }
+      
+      function toRadians(degrees){
+          return degrees * Math.PI / 180.0;
+      }
+      
+      function toDegrees(radians){
+          return radians * 180.0 / Math.PI;
+      }
+
     function updateUserPosition(position) {
         prevPrevPos = prevPos;
         prevPos = pos;
@@ -71,11 +98,11 @@ function initMap() {
             .then(response => response.json())
             .then(data => {
                 if (data.snappedPoints) {
-                    var nearestRoadLocation = {
+                    lastNearestRoadLocation = nearestRoadLocation;
+                    nearestRoadLocation = {
                         lat: data.snappedPoints[0].location.latitude,
                         lng: data.snappedPoints[0].location.longitude
                     };
-                    placeId = data.snappedPoints[0].placeId;
                     userMarker.setPosition(nearestRoadLocation);
                     if (track) {
                         map.panTo(nearestRoadLocation);
@@ -99,8 +126,10 @@ function initMap() {
         }
 
         if (!lastUpdatedPos || google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(lastUpdatedPos), new google.maps.LatLng(pos)) > 10) {
-            let bearing = google.maps.geometry.spherical.computeHeading(prevPos, pos);
-            console.log(bearing)
+            // let bearing = google.maps.geometry.spherical.computeHeading(prevPos, pos);
+            // let bearing = calculateBearing(prevPos.lat, prevPos.lng, pos.lat, pos.lng);
+            let bearing = calculateBearing(lastNearestRoadLocation.lat, lastNearestRoadLocation.lng, nearestRoadLocation.lat, nearestRoadLocation.lng);
+            console.log(bearing);
             userMarker.setIcon({
                 path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
                 // scaledSize: new google.maps.Size(4, 4),
@@ -119,8 +148,41 @@ function initMap() {
         }
     
         if (route && pos) {
-            distanceToNextStep = google.maps.geometry.spherical.computeDistanceBetween(pos, route.legs[0].steps[currentStep].end_location)
-            document.getElementById('directionsPanel').innerHTML = route.legs[0].steps[currentStep].instructions + distanceToNextStep.toFixed(0) + "m";
+            const distanceToNextStep = google.maps.geometry.spherical.computeDistanceBetween(pos, route.legs[0].steps[currentStep].start_location)
+            document.getElementById('directionsPanel').innerHTML = route.legs[0].steps[currentStep].instructions + " " + distanceToNextStep.toFixed(0) + "m";
+            // document.getElementById('eta').innerHTML = route.legs[0].duration.text;
+            // console.log(route.legs[0].steps[currentStep].instructions);
+            // console.log(route.legs[0].steps[currentStep].duration.text)
+            // console.log(route.legs[0].duration.text)
+      
+            if (distanceToNextStep < 12) {
+                close = true;
+            }
+
+            if (distanceToNextStep < 100) {
+              speak((route.legs[0].steps[currentStep].instructions).replace(/<\/?[^>]+(>|$)/g, ""));
+            }
+
+            if (distanceToNextStep > 17 && close) {
+                currentStep++;
+                close = false;
+
+                speak((route.legs[0].steps[currentStep].instructions).replace(/<\/?[^>]+(>|$)/g, ""));
+      
+                if (currentStep < route.legs[0].steps.length) {
+                    document.getElementById('directionsPanel').innerHTML = route.legs[0].steps[currentStep].instructions;
+                } else {
+                    document.getElementById('directionsPanel').innerHTML = 'You have arrived at your destination.';  
+                    clearInterval(etaIntervalId);
+                    document.getElementById('eta').innerHTML = '';
+                    route = null;
+                    close = true;
+                    currentStep = 0;
+      
+                    document.getElementById('directionsPanel').style.display = 'none';
+                    document.getElementById('eta').style.display = 'none';
+                }
+            }
         }
     }
 
@@ -143,7 +205,20 @@ function initMap() {
     }
 }
 
-function handleLocationError(browserHasGeolocation, pos) {
+function speak(text) {
+    var msg = new SpeechSynthesisUtterance();
+    var voices = window.speechSynthesis.getVoices();
+    msg.voice = voices[10]; // Note: some voices don't support altering params
+    msg.voiceURI = 'native';
+    msg.volume = 1; // 0 to 1
+    msg.rate = 1; // 0.1 to 10
+    msg.pitch = 2; //0 to 2
+    msg.text = text;
+    msg.lang = 'en-US';
+    window.speechSynthesis.speak(msg);
+}
+
+function handleLocationError(browserHasGeolocation) {
     alert(browserHasGeolocation ?
         'Error: The Geolocation service failed.' :
         'Error: Your browser doesn\'t support geolocation.');
@@ -182,7 +257,7 @@ document.getElementById('address-form').addEventListener('submit', function(e) {
 
     geocoder.geocode({'address': address}, function(results, status) {
         if (status === 'OK') {
-            if (navigator.geolocation) {  
+            if (navigator.geolocation) {
                 directionsService.route({
                     origin: pos,
                     destination: results[0].geometry.location,
@@ -190,33 +265,42 @@ document.getElementById('address-form').addEventListener('submit', function(e) {
                 }, function(response, status) {
                     if (status === 'OK') {
                         directionsRenderer.setDirections(response);
+                        
+                        setTimeout(function() {
+                          map.panTo(pos);
+                          setTimeout(function() {
+                              map.setZoom(17, {animate: true});
+                          }, 1500);
+                        }, 1500);
+                        route = response.routes[0];
+                        document.getElementById('directionsPanel').innerHTML = route.legs[0].steps[currentStep].instructions + " " + google.maps.geometry.spherical.computeDistanceBetween(pos, route.legs[0].steps[currentStep].start_location).toFixed(0) + "m";
+                        document.getElementById('eta').innerHTML = route.legs[0].duration.text;
+                        userHasMovedMap = false;
+                        track = true;
 
                         document.getElementById('directionsPanel').style.display = 'block';
-  
-                        // Get the current step
-                        route = response.routes[0];
-                        const step = route.legs[0].steps[currentStep];
-                        console.log(route.legs[0].steps[currentStep].instructions);
-  
-                        // Calculate the distance between the user's location and the end point of the current step
-                        const distance = google.maps.geometry.spherical.computeDistanceBetween(
-                            new google.maps.LatLng(pos),
-                            step.end_location
-                        );
-  
-                        // If the user is close enough to the end point of the current step, move to the next step
-                        if (distance < 50) {
-                            currentStep++;
-  
-                            if (currentStep < route.legs[0].steps.length) {
-                                document.getElementById('directionsPanel').innerHTML = route.legs[0].steps[currentStep].instructions;
-                            } else {
-                                document.getElementById('directionsPanel').innerHTML = 'You have arrived at your destination.';
-                                route = null;
+                        console.log((route.legs[0].steps[currentStep].instructions).replace(/<\/?[^>]+(>|$)/g, ""));
+                        speak((route.legs[0].steps[currentStep].instructions).replace(/<\/?[^>]+(>|$)/g, ""));
+                        document.getElementById('eta').style.display = 'block';
 
-                                document.getElementById('directionsPanel').style.display = 'none';
+                        function updateETA() {
+                            if (route && pos) {
+                                    directionsService.route({
+                                        origin: pos,
+                                        destination: results[0].geometry.location,
+                                        travelMode: 'DRIVING'
+                                    }, function(response, status) {
+                                        if (status === 'OK') {
+                                            routeETA = response.routes[0];
+                                            console.log(routeETA.legs[0].duration.text);
+                                            document.getElementById('eta').innerHTML = routeETA.legs[0].duration.text;
+                                        }
+                                    });
                             }
                         }
+
+                        etaIntervalId = setInterval(updateETA, 60000);
+  
                     } else {
                         window.alert('Directions request failed due to ' + status);
                     }
