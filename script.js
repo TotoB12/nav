@@ -12,6 +12,7 @@ let route = null;
 let close = true;
 let etaIntervalId;
 let routeETA;
+let arrivalTime;
 
 function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
@@ -94,28 +95,30 @@ function initMap() {
             lng: position.coords.longitude
         };
     
-        fetch('https://roads.googleapis.com/v1/nearestRoads?points=' + pos.lat + ',' + pos.lng + '&key=AIzaSyDOXyN5QuyRDuPhPGmAIWsFyTdBhTu0ufM')
-            .then(response => response.json())
-            .then(data => {
-                if (data.snappedPoints) {
-                    lastNearestRoadLocation = nearestRoadLocation;
-                    nearestRoadLocation = {
-                        lat: data.snappedPoints[0].location.latitude,
-                        lng: data.snappedPoints[0].location.longitude
-                    };
-                    userMarker.setPosition(nearestRoadLocation);
-                    if (track) {
-                        map.panTo(nearestRoadLocation);
-                    }
-                }
-            });
+        // fetch('https://roads.googleapis.com/v1/nearestRoads?points=' + pos.lat + ',' + pos.lng + '&key=AIzaSyDOXyN5QuyRDuPhPGmAIWsFyTdBhTu0ufM')
+        //     .then(response => response.json())
+        //     .then(data => {
+        //         if (data.snappedPoints) {
+        //             lastNearestRoadLocation = nearestRoadLocation;
+        //             nearestRoadLocation = {
+        //                 lat: data.snappedPoints[0].location.latitude,
+        //                 lng: data.snappedPoints[0].location.longitude
+        //             };
+        //             userMarker.setPosition(nearestRoadLocation);
+        //             if (track) {
+        //                 map.panTo(nearestRoadLocation);
+        //             }
+        //         }
+        //     });
+        userMarker.setPosition(pos);
+        if (track) {
+            map.panTo(pos);
+        }
 
         if (prevPos) {
           
-            let distance = google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(prevPos), new google.maps.LatLng(pos)) + google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(prevPrevPos), new google.maps.LatLng(prevPos));
-
+            let distance = (google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(prevPos), new google.maps.LatLng(pos)) + google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(prevPrevPos), new google.maps.LatLng(prevPos))) * 0.000621371;
             // console.log(`Distance: ${distance}`)
-            distance = distance * 0.000621371;
     
             let speed = distance * 1800;
             // console.log(`Speed: ${speed}`)
@@ -127,11 +130,12 @@ function initMap() {
 
         if (!lastUpdatedPos || google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(lastUpdatedPos), new google.maps.LatLng(pos)) > 10) {
             // let bearing = google.maps.geometry.spherical.computeHeading(prevPos, pos);
-            // let bearing = calculateBearing(prevPos.lat, prevPos.lng, pos.lat, pos.lng);
-            let bearing = calculateBearing(lastNearestRoadLocation.lat, lastNearestRoadLocation.lng, nearestRoadLocation.lat, nearestRoadLocation.lng);
+            let bearing = calculateBearing(prevPos.lat, prevPos.lng, pos.lat, pos.lng);
+            // let bearing = calculateBearing(lastNearestRoadLocation.lat, lastNearestRoadLocation.lng, nearestRoadLocation.lat, nearestRoadLocation.lng);
             console.log(bearing);
             userMarker.setIcon({
                 path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                // url: "smallcar.png",
                 // scaledSize: new google.maps.Size(4, 4),
                 scale: 5,
                 strokeColor: "#cc0000",
@@ -159,9 +163,9 @@ function initMap() {
                 close = true;
             }
 
-            if (distanceToNextStep < 100) {
-              speak((route.legs[0].steps[currentStep].instructions).replace(/<\/?[^>]+(>|$)/g, ""));
-            }
+            // if (distanceToNextStep < 100) {
+            //   speak((route.legs[0].steps[currentStep].instructions).replace(/<\/?[^>]+(>|$)/g, ""));
+            // }
 
             if (distanceToNextStep > 17 && close) {
                 currentStep++;
@@ -172,17 +176,11 @@ function initMap() {
                 if (currentStep < route.legs[0].steps.length) {
                     document.getElementById('directionsPanel').innerHTML = route.legs[0].steps[currentStep].instructions;
                 } else {
-                    document.getElementById('directionsPanel').innerHTML = 'You have arrived at your destination.';  
-                    clearInterval(etaIntervalId);
-                    document.getElementById('eta').innerHTML = '';
-                    route = null;
-                    close = true;
-                    currentStep = 0;
-      
-                    document.getElementById('directionsPanel').style.display = 'none';
-                    document.getElementById('eta').style.display = 'none';
+                    endRoute();
                 }
             }
+        } else {
+          // document.getElementById('time').innerHTML = new Date().toLocaleTimeString('en-US', { hour: 'numeric', hour12: true, minute: 'numeric' });
         }
     }
 
@@ -206,17 +204,48 @@ function initMap() {
 }
 
 function speak(text) {
-    var msg = new SpeechSynthesisUtterance();
-    var voices = window.speechSynthesis.getVoices();
-    msg.voice = voices[10]; // Note: some voices don't support altering params
-    msg.voiceURI = 'native';
-    msg.volume = 1; // 0 to 1
-    msg.rate = 1; // 0.1 to 10
-    msg.pitch = 2; //0 to 2
-    msg.text = text;
-    msg.lang = 'en-US';
+    // var msg = new SpeechSynthesisUtterance();
+    // var voices = window.speechSynthesis.getVoices();
+    // msg.voice = voices[10]; // Note: some voices don't support altering params
+    // msg.voiceURI = 'native';
+    // msg.volume = 1; // 0 to 1
+    // msg.rate = 1; // 0.1 to 10
+    // msg.pitch = 2; //0 to 2
+    // msg.text = text;
+    // msg.lang = 'en-US';
+    // window.speechSynthesis.speak(msg);
+    console.log("At least I tried.");
+    var msg = new SpeechSynthesisUtterance(text);
     window.speechSynthesis.speak(msg);
 }
+
+function makeMarker(position, icon, title) {
+    new google.maps.Marker({
+        position: position,
+        map: map,
+        icon: icon,
+        title: title
+    });
+}
+
+function endRoute() {
+    document.getElementById('time').style.transform = "none"; 
+    document.getElementById('time').style.right = "10px";
+    document.getElementById('time').style.left = "auto";
+    document.getElementById('directionsPanel').innerHTML = 'You have arrived at your destination.';  
+    clearInterval(etaIntervalId);
+    document.getElementById('eta').innerHTML = '';
+    route = null;
+    close = true;
+    currentStep = 0;
+    
+    document.getElementById('directionsPanel').style.display = 'none';
+    document.getElementById('eta').style.display = 'none';
+}
+
+document.getElementById('time').innerHTML = new Date().toLocaleTimeString('en-US', { hour: 'numeric', hour12: true, minute: 'numeric' });
+
+setInterval(function() {document.getElementById('time').innerHTML = new Date().toLocaleTimeString('en-US', { hour: 'numeric', hour12: true, minute: 'numeric' });}, 60000);
 
 function handleLocationError(browserHasGeolocation) {
     alert(browserHasGeolocation ?
@@ -253,6 +282,13 @@ document.getElementById('address-form').addEventListener('submit', function(e) {
     const directionsService = new google.maps.DirectionsService();
     const directionsRenderer = new google.maps.DirectionsRenderer();
 
+    directionsRenderer.setOptions({
+        suppressMarkers: true,
+        polylineOptions: {
+            strokeColor: '#007fff'
+        }
+    });
+
     directionsRenderer.setMap(map);
 
     geocoder.geocode({'address': address}, function(results, status) {
@@ -265,22 +301,35 @@ document.getElementById('address-form').addEventListener('submit', function(e) {
                 }, function(response, status) {
                     if (status === 'OK') {
                         directionsRenderer.setDirections(response);
-                        
-                        setTimeout(function() {
-                          map.panTo(pos);
-                          setTimeout(function() {
-                              map.setZoom(17, {animate: true});
-                          }, 1500);
-                        }, 1500);
+                    
                         route = response.routes[0];
+                        console.log(response)
+                        // makeMarker(leg.start_location, "https://maps.google.com/mapfiles/kml/paddle/grn-circle.png", "Start");
+                        makeMarker(route.legs[0].end_location, "https://img.icons8.com/color/48/map-pin.png");
+                      
+                        document.getElementById('address-input').value = route.legs[0].end_address;
                         document.getElementById('directionsPanel').innerHTML = route.legs[0].steps[currentStep].instructions + " " + google.maps.geometry.spherical.computeDistanceBetween(pos, route.legs[0].steps[currentStep].start_location).toFixed(0) + "m";
+                        arrivalTime = route.legs[0].duration.value;
+                        document.getElementById('time').style.transform = "translateX(-50%)"; 
+                        document.getElementById('time').style.right = "auto";
+                        document.getElementById('time').style.left = "50%";
                         document.getElementById('eta').innerHTML = route.legs[0].duration.text;
                         userHasMovedMap = false;
                         track = true;
 
+                                                
+                        setTimeout(function() {
+                          setTimeout(function() {
+                              map.setZoom(17, {animate: true});
+                          }, 1500);
+                          map.panTo(pos);
+                        }, 1500);
+
                         document.getElementById('directionsPanel').style.display = 'block';
                         console.log((route.legs[0].steps[currentStep].instructions).replace(/<\/?[^>]+(>|$)/g, ""));
-                        speak((route.legs[0].steps[currentStep].instructions).replace(/<\/?[^>]+(>|$)/g, ""));
+                        // speak((route.legs[0].steps[currentStep].instructions).replace(/<\/?[^>]+(>|$)/g, ""));
+                        // var msg = new SpeechSynthesisUtterance("At least I tried.");
+                        // window.speechSynthesis.speak(msg);
                         document.getElementById('eta').style.display = 'block';
 
                         function updateETA() {
