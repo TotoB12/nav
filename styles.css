@@ -12,6 +12,10 @@ body {
     height: 100vh;
 }
 
+* {
+    transition: all 0.3s ease;
+}
+
 #directionsPanel {
     display: none;
     flex-shrink: 0;
@@ -102,6 +106,15 @@ button img {
     z-index: 1;
 }
 
+#end-route-button {
+    display: none;
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    width: 50px;
+    z-index: 1;
+}
+
 #speedometer {
     position: absolute;
     top: 10px;
@@ -136,7 +149,8 @@ button img {
     z-index: 1;
 }
 
-/* #time1 {
+#arrive {
+    display: none;
     position: absolute;
     top: 0;
     transform: translateY(150%);
@@ -145,4 +159,4 @@ button img {
     background-color: white;
     border-radius: 5px;
     z-index: 1;
-} */
+}
